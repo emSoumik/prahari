@@ -1,0 +1,56 @@
+@import "tailwindcss";
+
+@theme {
+  --color-paper: #F4F1EA;
+  --color-paper-2: #ECE8DF;
+  /* off-white surface for cards on paper; softer than #fff on a projector */
+  --color-card: #FCFBF8;
+  --color-ink: #141414;
+  --color-ink-2: #5B5B57;
+  --color-ink-3: #8C8A84;
+  --color-rule: #1414141F;
+  --color-leaf: #3E8E2E;
+  --color-leaf-soft: #E4F0DF;
+  --color-butter: #F3C445;
+  --color-bark: #7A5230;
+  --color-sky: #DCE6F7;
+  --color-cobalt: #2747C8;
+  --color-alarm: #E5484D;
+  --color-alarm-soft: #FCE8E8;
+  --color-amber: #E8A13A;
+  --color-amber-soft: #FBF0DD;
+
+  --color-swiggy: #FC8019;
+  --color-hdfc: #004C8F;
+  --color-hdfc-red: #ED232A;
+
+  --font-display: "Bricolage Grotesque", system-ui, sans-serif;
+  --font-sans: system-ui, -apple-system, "SF Pro Text", Inter, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+  --font-serif: "Source Serif 4", Georgia, serif;
+
+  --ease-out-quint: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@layer base {
+  html, body, #root { height: 100%; }
+  body {
+    @apply bg-paper text-ink font-sans antialiased;
+    font-feature-settings: "ss01", "cv11";
+    text-rendering: optimizeLegibility;
+  }
+  ::selection { background: color-mix(in oklch, var(--color-leaf) 25%, transparent); }
+  :focus-visible { outline: 2px solid var(--color-cobalt); outline-offset: 2px; }
+  .tabular { font-variant-numeric: tabular-nums; }
+}
+
+@utility display {
+  font-family: var(--font-display);
+  font-weight: 800;
+  letter-spacing: -0.035em;
+  line-height: 0.95;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { transition-duration: 1ms !important; animation-duration: 1ms !important; }
+}
