@@ -1,0 +1,21 @@
+# Prahari policy: edit freely, no code change needed.
+roles:
+  analyst: {allowed_tools: [db.read, ticket.create, email.draft], max_amount: 0}
+  support: {allowed_tools: [db.read, ticket.create, email.send_one, refund.issue], max_amount: 5000}
+  ops:     {allowed_tools: [db.read, db.write, db.delete, service.restart, backup.create, backup.delete, email.send_one, shell.run, http.post], max_amount: 0}
+  banking: {allowed_tools: [db.read, payment.transfer, ticket.create, card.block, dispute.raise], max_amount: 100000}
+  recruiter: {allowed_tools: [db.read, candidate.rank, candidate.shortlist, ticket.create], max_amount: 0}
+  sales:   {allowed_tools: [db.read, offer.send, ticket.create], max_amount: 0}
+  airline_support: {allowed_tools: [db.read, message.send, ticket.create], max_amount: 0}
+hard_blocks: [db.drop, iam.grant_admin, audit.disable, shell.rm_rf]
+irreversible_tools: [db.delete, db.drop, email.send_bulk, payment.transfer, backup.delete, shell.rm_rf]
+read_only_tools: [db.read, email.draft, ticket.create]
+max_rows_without_review: 100
+abuse: {max_refunds_7d: 2, max_refused_attempts: 2}
+step_up_required_tools: [payment.transfer]
+min_offer_price: {vehicle: 20000}
+policy_facts: {retroactive_bereavement_refund: false}
+queues: {default: support_senior, payment.transfer: fraud_ops}
+# Refusals of a customer's own request on these tools go to a human (ASK_HUMAN) instead of a cold BLOCK
+# when the customer is upset or was already refused max_refused_attempts times. Security blocks never soften.
+soft_refusal_tools: [refund.issue]

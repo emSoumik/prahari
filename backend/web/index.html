@@ -1,0 +1,223 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Prahari | Ship of Theseus</title>
+<style>
+:root{--bg:#0b1220;--panel:#111a2e;--ink:#e8eefc;--mute:#8da0c4;--allow:#34d399;--limit:#fbbf24;--ask:#fb923c;--block:#f43f5e;--line:#22304f;--ai:#a78bfa;--aibg:#2e1f5e}
+*{box-sizing:border-box}body{margin:0;padding-bottom:44px;background:radial-gradient(1200px 600px at 70% -10%,#17284d,var(--bg));color:var(--ink);font:15px/1.45 system-ui,sans-serif}
+header{padding:14px 28px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+h1{margin:0;font-size:20px;letter-spacing:.04em}h1 small{display:block;color:var(--mute);font-weight:400;font-size:12px;letter-spacing:0}
+main{display:grid;grid-template-columns:280px 1fr 340px;gap:18px;padding:18px 28px}
+@media(max-width:1000px){main{grid-template-columns:1fr}}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px}
+.sc{cursor:pointer;margin-bottom:10px;transition:.2s}.sc:hover,.sc.on{border-color:#5b8cff;transform:translateY(-2px)}
+.sc b{display:block}.sc span{color:var(--mute);font-size:13px}
+button{background:#2b4a9c;color:#fff;border:0;border-radius:10px;padding:9px 14px;cursor:pointer;font-weight:600}button.alt{background:#1b2744}
+button.sm{padding:5px 9px;font-size:12px;border-radius:8px}button.danger{background:#7f1d1d}button.big{padding:12px 18px;font-size:15px;background:#16a34a}
+.modes{display:flex;align-items:center;gap:10px;flex-wrap:wrap}.modes label{color:var(--mute)}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:10px;overflow:hidden}.seg button{border-radius:0;background:#1b2744}.seg button.on{background:#2b4a9c}
+#ship{min-height:120px;display:flex;flex-direction:column;gap:8px;position:relative}
+#goal{color:var(--mute);margin-bottom:6px}
+.ship{display:flex;flex-direction:column;gap:8px}
+.plank{position:relative;padding:12px 14px;border-radius:10px;background:#1a2540;border-left:6px solid #5b8cff;animation:in .45s cubic-bezier(.2,.9,.3,1.2);cursor:pointer}
+.plank .t{font-family:ui-monospace,monospace;font-size:13px;overflow-wrap:anywhere}.plank .r{color:var(--mute);font-size:13px;margin-top:4px}
+.plank.ALLOW{border-color:var(--allow)}.plank.ALLOW_WITH_LIMITS{border-color:var(--limit)}.plank.ASK_HUMAN{border-color:var(--ask)}
+.plank.BLOCK{border-color:var(--block);animation:shake .5s,in .45s}
+.plank.EXECUTED_UNGUARDED{border-color:#64748b}
+.plank.harm{background:#3b0d18;border-color:var(--block);animation:shake .5s,in .45s}
+.plank.out{opacity:.35;text-decoration:line-through;transform:translateX(40px) rotate(2deg);transition:.7s}
+.plank.new{background:#0f2b25;box-shadow:0 0 0 1px var(--allow) inset;animation:slide .6s ease-out}
+.badge{float:right;font-size:11px;font-weight:700;padding:2px 8px;border-radius:99px;background:#243255}
+.ALLOW .badge{background:var(--allow);color:#04251b}.ALLOW_WITH_LIMITS .badge{background:var(--limit);color:#2a1d00}.ASK_HUMAN .badge{background:var(--ask);color:#2b1200}.BLOCK .badge,.harm .badge{background:var(--block);color:#fff}
+@keyframes in{from{opacity:0;transform:translateY(14px) scale(.98)}to{opacity:1;transform:none}}
+@keyframes shake{20%{transform:translateX(-8px)}40%{transform:translateX(8px)}60%{transform:translateX(-5px)}80%{transform:translateX(5px)}}
+@keyframes slide{from{opacity:0;transform:translateX(-60px)}to{opacity:1;transform:none}}
+#sum{margin-top:10px;font-weight:600}
+.chain{display:flex;gap:4px;flex-wrap:wrap;margin:8px 0}.blk{width:22px;height:22px;border-radius:5px;background:#243255;font-size:9px;display:grid;place-items:center;color:var(--mute);transition:.3s}
+.blk.ok{background:#14532d;color:#bbf7d0}.blk.bad{background:var(--block);color:#fff;animation:shake .5s}
+.bar{height:10px;border-radius:6px;background:#243255;margin:3px 0 10px;overflow:hidden}.bar i{display:block;height:100%;width:0;background:var(--allow);transition:width .3s}
+.mono{font-family:ui-monospace,monospace;font-size:12px;color:var(--mute)}
+.tag{float:right;margin-right:6px;font-size:10px;font-weight:700;padding:2px 7px;border-radius:99px;letter-spacing:.03em}
+.tag.rules{background:#2563eb;color:#fff}.tag.llm{background:#7c3aed;color:#fff}.tag.both{background:linear-gradient(90deg,#2563eb,#7c3aed);color:#fff}.tag.fail_closed{background:var(--ask);color:#2b1200}
+#motto{color:var(--mute);font-size:13px;margin-top:8px;font-style:italic}
+#side{position:fixed;top:0;right:0;width:360px;max-width:100%;height:100%;overflow:auto;background:var(--panel);border-left:1px solid var(--line);padding:18px;transform:translateX(100%);transition:transform .3s;z-index:10}
+#side.open{transform:none}#side h3{margin:14px 0 4px;font-size:14px}#side ul{margin:4px 0;padding-left:18px;color:var(--mute)}#side p{margin:4px 0;color:var(--mute)}
+/* Voyage tab */
+.grp h4{margin:14px 0 6px;font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--mute)}
+.acts{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap}
+.run{border:1px solid var(--line);border-radius:12px;padding:10px;margin-bottom:12px;background:#0e1628}
+.runhead{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;font-weight:700}
+.runhead .mono{font-weight:400}
+.explain{font-size:12.5px;margin-top:6px;color:var(--mute)}.explain b{color:var(--ink);font-weight:600}.explain .ai b{color:var(--ai)}
+.banner{border-radius:10px;padding:10px 12px;margin:8px 0;font-size:14px}
+.banner.harm{background:#4c0519;border:1px solid var(--block)}.banner.ingest{background:#3a2a05;border:1px solid var(--limit);color:#fde68a}
+.metrics{font-weight:600;font-size:14px;margin-top:8px}
+.handoff{border:1px dashed var(--ask);border-radius:10px;padding:10px 12px;font-size:13px;background:#2a1606;animation:in .45s}
+.handoff b.h{color:var(--ask);display:block;margin-bottom:4px}.handoff div{color:#fed7aa}
+.chip{display:inline-flex;flex-direction:column;background:var(--aibg);border:1px solid #5b3fb0;border-radius:10px;padding:4px 9px;margin:3px 4px 3px 0;font-size:13px}
+.chip small{color:var(--ai);font-size:9.5px;letter-spacing:.05em;text-transform:uppercase}
+.facts{display:grid;grid-template-columns:1fr auto;gap:2px 10px;font-size:13px;margin:6px 0}.facts span{color:var(--mute)}
+/* Three Ships */
+#three{display:none;padding:14px 28px}
+#three .bar3{display:flex;gap:10px;align-items:center;margin-bottom:12px;flex-wrap:wrap}
+#three select{background:#1b2744;color:var(--ink);border:1px solid var(--line);border-radius:10px;padding:8px}
+.cols{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+@media(max-width:900px){.cols{grid-template-columns:1fr}}
+.col{display:flex;flex-direction:column;min-height:0}
+.col h3{margin:0 0 8px;font-size:16px}
+.col .ship{max-height:calc(100vh - 290px);overflow:auto;padding-right:4px}
+.term{background:var(--block);color:#fff;font-weight:800;font-size:20px;border-radius:12px;padding:22px 16px;text-align:center;animation:shake .5s,in .45s}
+.empty{color:var(--mute);text-align:center;padding:18px;border:1px dashed var(--line);border-radius:12px;margin-top:8px}
+footer{position:fixed;left:0;right:0;bottom:0;padding:10px 28px;background:#0a1020;border-top:1px solid var(--line);text-align:center;font-weight:600;letter-spacing:.02em;z-index:5}
+footer i{color:var(--ai);font-style:normal}
+</style></head><body>
+<header><h1>PRAHARI<small>Replace every risky plank. Keep the same ship sailing.</small></h1>
+<div class="modes"><div class="seg"><button id="vVoy" class="on">Voyage</button><button id="v3">Three Ships</button></div>
+<label><input type="radio" name="m" value="rules"> rules</label><label><input type="radio" name="m" value="llm"> AI</label><label><input type="radio" name="m" value="hybrid" checked> hybrid</label>
+<button id="run">Launch agent</button></div></header>
+<main id="voyage">
+<section><div id="sc"></div><div class="card" style="margin-top:12px"><b>Human inbox</b><div id="inbox" class="mono">nothing waiting</div></div></section>
+<section class="card"><div id="goal">Pick a voyage on the left.</div><div id="runs"></div><div id="ship"></div><div id="motto">Rules are fast and certain. AI handles new cases. The stricter answer wins.</div><div id="sum"></div></section>
+<section>
+ <div class="card" id="cust"><b>Customer</b><div class="mono">No customer in this voyage yet.</div></div>
+ <div class="card" style="margin-top:12px"><b>Tamper-proof log</b><div class="chain" id="chain"></div>
+  <button class="alt" id="ver">Verify</button> <button class="alt" id="tam">Try to tamper</button><div id="chainmsg" class="mono"></div></div>
+ <div class="card" style="margin-top:12px"><b>Live benchmark (20 cases)</b>
+  <div id="bm"></div><button class="alt" id="bench">Run benchmark</button></div>
+</section></main>
+<section id="three">
+ <div class="bar3"><b>Voyage:</b><select id="sel3"></select><button id="launch3">Launch all three</button>
+  <span class="mono">Same scenario, same agent plan, three different guards.</span></div>
+ <div class="cols">
+  <div class="col card" data-guard="none"><h3>Unguarded agent</h3><div class="ship"></div><div class="metrics"></div></div>
+  <div class="col card" data-guard="legacy"><h3>Legacy refuse-all guard</h3><div class="ship"></div><div class="metrics"></div></div>
+  <div class="col card" data-guard="prahari"><h3>Prahari</h3><div class="ship"></div><div class="metrics"></div></div>
+ </div>
+</section>
+<aside id="side"><button class="alt" id="sideclose" style="float:right">Close</button><b>Why this verdict</b><div id="sidebody"></div></aside>
+<footer><i>AI advises.</i> Rules decide. Humans handle the risky calls.</footer>
+<script>
+const $=s=>document.querySelector(s);let SC=[],sel=null;
+const mode=()=>document.querySelector('input[name=m]:checked').value;
+const short=a=>a.tool+' '+JSON.stringify(a.params).slice(0,70);
+async function stream(url,body,on){const r=await fetch(url,{method:body?'POST':'GET',headers:{'Content-Type':'application/json'},body:body?JSON.stringify(body):undefined});
+ const rd=r.body.getReader(),dec=new TextDecoder();let buf='';
+ for(;;){const{value,done}=await rd.read();if(done)break;buf+=dec.decode(value,{stream:true});let i;
+  while((i=buf.indexOf('\n\n'))>=0){const l=buf.slice(0,i);buf=buf.slice(i+2);if(l.startsWith('data:'))on(JSON.parse(l.slice(5)))}}}
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]);
+const words=s=>String(s??'').replace(/_/g,' ');
+const TAGS={rules:'RULES',llm:'AI',both:'RULES + AI',fail_closed:'AI FAILED, HUMAN'};
+const ICON={'Food delivery':'🍔','Banking':'🏦','DevOps':'🛠️','Airline':'✈️','Dealer':'🚗','Customer support':'🎧'};
+const IND_ORDER=['Food delivery','Banking','DevOps','Airline','Dealer'];
+const GUARD_TITLE={none:'Without guardrail',legacy:'Legacy refuse-all guard',prahari:'With Prahari'};
+
+/* ---------- scenarios, grouped by industry (API field: industry) ---------- */
+fetch('/api/scenarios').then(r=>r.json()).then(d=>{SC=d;
+ const groups={};d.forEach(s=>(groups[s.industry||'Other']??=[]).push(s));
+ const names=Object.keys(groups).sort((a,b)=>((IND_ORDER.indexOf(a)+1)||99)-((IND_ORDER.indexOf(b)+1)||99));
+ $('#sc').innerHTML=names.map(n=>`<div class="grp"><h4>${ICON[n]||'📦'} ${esc(n)}</h4>${groups[n].map(s=>`<div class="card sc" data-id="${esc(s.id)}"><b>${esc(s.title)}</b><span>${esc(s.goal)}</span>
+  <div class="acts"><button class="sm danger" data-g="none">Without guardrail</button><button class="sm" data-g="prahari">Run with Prahari</button></div></div>`).join('')}</div>`).join('');
+ document.querySelectorAll('.sc').forEach(e=>{e.onclick=()=>pick(e.dataset.id);
+  e.querySelectorAll('button').forEach(b=>b.onclick=ev=>{ev.stopPropagation();pick(e.dataset.id);voyage(e.dataset.id,b.dataset.g)})});
+ $('#sel3').innerHTML=d.map(s=>`<option value="${esc(s.id)}">${ICON[s.industry]||'📦'} ${esc(s.title)}</option>`).join('')});
+function pick(id){sel=id;document.querySelectorAll('.sc').forEach(x=>x.classList.toggle('on',x.dataset.id==id));$('#goal').textContent='Goal: '+SC.find(s=>s.id==id).goal;$('#sel3').value=id}
+
+/* ---------- side panel ---------- */
+function decorate(p,res){p._res=res;p.querySelector('.tag')?.remove();const t=TAGS[res.decided_by];
+ if(t)p.querySelector('.badge').insertAdjacentHTML('afterend',`<span class="tag ${res.decided_by}">${t}</span>`)}
+function showLayers(res){const L=res.layers||{},r=L.rules,a=L.llm;
+ const rules=r?`<h3>Deterministic rules say: ${esc(words(r.verdict))}</h3><ul>${r.reasons.map(x=>`<li>${esc(x)}</li>`).join('')}</ul>`:'<h3>Deterministic rules say:</h3><p>not used in this mode</p>';
+ const ai=a?`<h3>AI judge says: ${esc(words(a.verdict))}</h3><p>${esc(a.reason)}</p><p>Matches the user's goal: <b>${a.aligned===false?'No':a.aligned===true?'Yes':'unknown'}</b></p>${a.injection_suspected?'<p>Suspected prompt injection: <b>Yes</b></p>':''}`:'<h3>AI judge says:</h3><p>not used in this mode</p>';
+ $('#sidebody').innerHTML=`<p>Final: <b>${esc(words(res.verdict))}</b></p>${rules}${ai}<h3>All reasons</h3><ul>${(res.reasons||[]).map(x=>`<li>${esc(x)}</li>`).join('')}</ul>`;$('#side').classList.add('open')}
+$('#sideclose').onclick=()=>$('#side').classList.remove('open');
+document.addEventListener('click',ev=>{const p=ev.target.closest('.plank');if(p&&p._res)showLayers(p._res)});
+
+/* ---------- explanation under each plank: facts and rules vs AI read ---------- */
+function explain(res){
+ if(res.verdict==='EXECUTED_UNGUARDED')return `<div class="explain">${esc(res.reasons.join(' | '))}</div>`;
+ const R=res.layers?.rules,S=res.signals;
+ const facts=R?R.reasons.join('; '):'not checked (AI-only mode)';
+ let ai='not used (rules-only mode)';
+ if(S&&S.judge_failed)ai='unavailable, so a human decides (fail closed)';
+ else if(S)ai=[words(S.intent),S.sensitivity,S.pressure_tactics?'pressure tactics':null,S.abuse_likelihood!=='low'?`${S.abuse_likelihood} abuse risk`:null,
+  ...(S.claims||[]).map(c=>'promises '+words(c))].filter(Boolean).join(', ')+(res.ai_suggestion?`. Suggested ${words(res.ai_suggestion)} (advice only).`:'');
+ return `<div class="explain"><div><b>Facts and rules:</b> ${esc(facts)}</div><div class="ai"><b>AI read:</b> ${esc(ai)}</div></div>`}
+function handoffCard(h){return `<div class="handoff"><b class="h">Passed to a human agent</b>
+ <div><b>Queue:</b> ${esc(h.queue)}</div><div><b>Summary:</b> ${esc(h.summary)}</div><div><b>Suggested tone:</b> ${esc(h.suggested_tone)}</div>
+ <div><b>Already tried:</b> ${esc(h.refused_attempts)} earlier refused attempt(s). ${esc((h.reasons||[]).slice(0,2).join('; '))}</div></div>`}
+const metricLine=m=>m?`Legit steps completed ${m.legit_completed}/${m.legit_total}, harmful steps executed ${m.harmful_executed}/${m.harmful_total}`+(m.untagged?` (${m.untagged} untagged)`:''):'';
+
+/* ---------- one run rendered into a ship box; used by Voyage and Three Ships ---------- */
+async function runInto(box,body,h={}){const planks={};let start=null;
+ await stream('/api/run',body,e=>{
+  if(e.type==='start'){start=e;h.start?.(e)}
+  if(e.type==='ingest')box.insertAdjacentHTML('beforeend',`<div class="banner ingest"><b>Prahari cleaned the incoming text</b><br>${e.flags.map(esc).join('<br>')}</div>`);
+  if(e.type==='terminated')box.insertAdjacentHTML('beforeend',`<div class="term">Session terminated: ${esc(e.reason)}</div><div class="empty">Empty ship. The customer got nothing.</div>`);
+  if(e.type==='step'){const p=document.createElement('div');p.className='plank';p._harmful=e.harmful;p.innerHTML=`<span class="badge">checking…</span><div class="t">${esc(short(e.action))}</div><div class="r"></div>`;box.append(p);planks[e.index]=p;h.step?.(e)}
+  if(e.type==='verdict'){const p=planks[e.index],v=e.result.verdict;p.classList.add(v);
+   let label=words(v);if(v==='EXECUTED_UNGUARDED'){label=p._harmful?'HARM DONE':'EXECUTED';if(p._harmful)p.classList.add('harm')}
+   p.querySelector('.badge').textContent=label;p.querySelector('.r').innerHTML=explain(e.result);decorate(p,e.result);
+   if(e.result.handoff)p.insertAdjacentHTML('afterend',handoffCard(e.result.handoff));h.verdict?.(e)}
+  if(e.type==='swap'&&e.swapped){const p=planks[e.index];p.classList.add('out');const n=document.createElement('div');n.className='plank new '+e.result.verdict;
+   n.innerHTML=`<span class="badge">REPLACEMENT PLANK</span><div class="t">${esc(short(e.action))}</div><div class="r">${esc(e.why)}</div>`;
+   const after=p.nextElementSibling?.classList.contains('handoff')?p.nextElementSibling:p;after.after(n);if(e.result)decorate(n,e.result)}
+  if(e.type==='approval_needed')loadInbox();
+  if(e.type==='error')box.insertAdjacentHTML('beforeend',`<div class="mono" style="color:var(--block)">${esc(e.message)}</div>`);
+  if(e.type==='done'){h.done?.(e,start);loadChain()}})}
+
+/* ---------- Voyage tab: unguarded vs Prahari kept side by side for comparison ---------- */
+let VOY={sid:null,blocks:{}};
+async function voyage(sid,guard){
+ if(VOY.sid!==sid){$('#runs').innerHTML='';VOY={sid,blocks:{}};renderCustomer(null,null)}
+ const blk=document.createElement('div');blk.className='run';
+ blk.innerHTML=`<div class="runhead"><span>${GUARD_TITLE[guard]}</span><span class="mono">${guard==='prahari'?'mode: '+mode():''}</span></div><div class="ship"></div><div class="foot"></div>`;
+ if(VOY.blocks[guard])VOY.blocks[guard].replaceWith(blk);
+ else if(guard==='none'&&VOY.blocks.prahari)VOY.blocks.prahari.before(blk);else $('#runs').append(blk);
+ VOY.blocks[guard]=blk;$('#ship').innerHTML='';$('#sum').textContent='';
+ const foot=blk.querySelector('.foot');
+ await runInto(blk.querySelector('.ship'),{scenario_id:sid,mode:mode(),guard},{
+  start:e=>{$('#goal').textContent=`Goal: ${e.goal}  (agent role: ${e.role}, planner: ${e.planner})`;if(e.customer)renderCustomer(e.customer,null)},
+  step:e=>{if(e.action.customer)renderCustomer(e.action.customer,undefined)},
+  verdict:e=>{if(e.result.signals)renderCustomer(undefined,e.result.signals)},
+  done:(e,start)=>{const s=e.summary;
+   foot.innerHTML=`<div class="metrics">${metricLine(e.metrics)}</div>`;
+   $('#sum').textContent=`${s.total} planks checked: ${s.allowed} passed, ${s.swapped} replaced, ${s.blocked} blocked, ${s.escalated} sent to a human.`;
+   if(e.customer)renderCustomer(e.customer,undefined);
+   if(guard==='none'&&start?.harm_if_unguarded){foot.insertAdjacentHTML('beforeend',`<div class="banner harm"><b>What just happened:</b> ${esc(start.harm_if_unguarded)}</div><button class="big">Rerun with Prahari</button>`);
+    foot.querySelector('button.big').onclick=()=>voyage(sid,'prahari')}}})}
+$('#run').onclick=()=>{if(!sel)return alert('Pick a voyage first');voyage(sel,'prahari')};
+
+/* ---------- customer panel: facts from the action, AI signal chips from the result ---------- */
+let CUST=null,SIG=null;
+function renderCustomer(c,s){if(c!==undefined)CUST=c;if(s!==undefined)SIG=s;
+ if(!CUST){$('#cust').innerHTML='<b>Customer</b><div class="mono">No customer in this voyage.</div>';return}
+ const chips=SIG&&!SIG.judge_failed?[['intent',words(SIG.intent)],['sensitivity',SIG.sensitivity],['pressure tactics',SIG.pressure_tactics?'yes':'no'],['abuse likelihood',SIG.abuse_likelihood]]
+  .map(([k,v])=>`<span class="chip"><small>AI read this · ${k}</small>${esc(v)}</span>`).join(''):
+  `<div class="mono">${SIG?.judge_failed?'AI unavailable: no signals.':'AI signals appear after the AI checks a step.'}</div>`;
+ $('#cust').innerHTML=`<b>Customer ${esc(CUST.id)}</b><div class="facts">
+  <span>Refunds in last 7 days</span><b>${esc(CUST.refunds_7d??'-')}</b><span>Refused attempts</span><b>${esc(CUST.refused_attempts??'-')}</b>
+  <span>Account age (days)</span><b>${esc(CUST.account_age_days??'-')}</b></div>${chips}`}
+
+/* ---------- Three Ships ---------- */
+function setView(v){$('#voyage').style.display=v==='voy'?'':'none';$('#three').style.display=v==='three'?'block':'none';
+ $('#vVoy').classList.toggle('on',v==='voy');$('#v3').classList.toggle('on',v==='three');$('#run').style.display=v==='voy'?'':'none'}
+$('#vVoy').onclick=()=>setView('voy');$('#v3').onclick=()=>setView('three');
+$('#launch3').onclick=async()=>{const sid=$('#sel3').value;if(!sid)return;$('#launch3').disabled=true;
+ const cols=[...document.querySelectorAll('.col')];
+ cols.forEach(c=>{c.querySelector('.ship').innerHTML='';c.querySelector('.metrics').textContent=''});
+ try{await Promise.all(cols.map(c=>runInto(c.querySelector('.ship'),{scenario_id:sid,mode:mode(),guard:c.dataset.guard},
+  {done:e=>c.querySelector('.metrics').textContent=metricLine(e.metrics)})))}finally{$('#launch3').disabled=false}};
+
+/* ---------- inbox, log, benchmark (unchanged behaviour) ---------- */
+async function loadInbox(){const a=await (await fetch('/api/approvals')).json();$('#inbox').innerHTML=a.length?a.map(x=>`<div style="margin:6px 0">${esc(short(x.action))}<br><button data-a="${esc(x.id)}" data-d="approve">Approve</button> <button class="alt" data-a="${esc(x.id)}" data-d="reject">Reject</button></div>`).join(''):'nothing waiting';
+ document.querySelectorAll('#inbox button').forEach(b=>b.onclick=async()=>{await fetch('/api/approvals/'+b.dataset.a,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({decision:b.dataset.d})});loadInbox();loadChain()})}
+async function loadChain(bad){const d=await (await fetch('/api/audit')).json();$('#chain').innerHTML=d.rows.map((r,i)=>`<div class="blk ${d.ok?'ok':'bad'}" title="${r.hash.slice(0,12)}">${r.hash.slice(0,2)}</div>`).join('');$('#chainmsg').textContent=d.ok?`${d.count} entries, chain intact`:'chain BROKEN at '+d.broken_at}
+$('#ver').onclick=loadChain;
+$('#tam').onclick=async()=>{const r=await fetch('/api/audit/tamper-demo',{method:'POST'});const d=await r.json();if(!r.ok)return $('#chainmsg').textContent=d.detail;
+ const off=Math.max(0,d.count-100);document.querySelectorAll('.blk').forEach((b,i)=>{if(i+off>=d.broken_at)b.className='blk bad'});$('#chainmsg').textContent=`Edited entry ${d.tampered_index} on a copy. Verification fails from entry ${d.broken_at}.`};
+$('#bench').onclick=async()=>{$('#bm').innerHTML='';const bars={};
+ await stream('/api/benchmark/stream?modes=rules,llm,hybrid',null,e=>{
+  if(e.type==='case'){if(!bars[e.mode]){$('#bm').insertAdjacentHTML('beforeend',`<div class="mono" id="l-${e.mode}">${e.mode}</div><div class="bar"><i id="b-${e.mode}"></i></div>`);bars[e.mode]=0}
+   if(e.correct)bars[e.mode]++;$('#b-'+e.mode).style.width=(bars[e.mode]/20*100)+'%'}
+  if(e.type==='summary')$('#l-'+e.mode).textContent=`${e.mode}: ${e.correct}/${e.total} correct, ${e.unsafe_approved} unsafe approved, ${e.safe_blocked} safe blocked`})};
+loadChain();
+</script></body></html>

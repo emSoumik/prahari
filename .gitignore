@@ -1,0 +1,15 @@
+node_modules/
+dist/
+.venv/
+.env
+*.env.local
+__pycache__/
+*.pyc
+backend/audit.jsonl
+backend/custom_rules.json
+.DS_Store
+.claude/settings.local.json
+.agents/**/node_modules/
+app/*.tsbuildinfo
+*.log
+.qa/
