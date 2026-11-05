@@ -1,7 +1,9 @@
 import { AnimatePresence, motion } from 'motion/react'
 import { ChevronRight, RefreshCw, X } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
+import { Link } from 'react-router'
 import { useDev } from '../../prahari/backend'
+import { hostOf, useLlm } from '../../prahari/llm'
 import clsx from 'clsx'
 
 const spring = { type: 'spring', bounce: 0, duration: 0.35 } as const
@@ -36,6 +38,11 @@ export function DevButton() {
   const [expanded, setExpanded] = useState<number | null>(null)
   const { mode, judge, health, log, setMode, setJudge, checkHealth, clearLog } = useDev()
   const root = useRef<HTMLDivElement>(null)
+  const llmModel = useLlm((s) => s.model)
+  const llmBase = useLlm((s) => s.baseUrl)
+  const modelName = health?.llm?.model || llmModel.trim()
+  const modelHost = health?.llm?.baseHost || hostOf(llmBase)
+  const connected = health?.ok === true && health.llmKey
 
   useEffect(() => {
     void checkHealth()
@@ -98,11 +105,20 @@ export function DevButton() {
             <div className="mt-3 flex items-center justify-between rounded-[12px] bg-paper px-3 py-2.5 text-[13px]">
               <span className="flex items-center gap-2">
                 <StatusDot tone={health == null ? 'idle' : health.ok ? 'ok' : 'down'} />
-                {health == null ? 'Checking…' : health.ok ? `Online · ${health.llmKey ? 'LLM key set' : 'no LLM key'}` : 'Offline · local answers instead'}
+                {health == null ? 'Checking…' : health.ok ? `Online · ${health.llmKey ? 'model connected' : 'no model'}` : 'Offline · local answers instead'}
               </span>
               <button type="button" onClick={() => void checkHealth()} aria-label="Check again" className="grid size-7 place-items-center rounded-full text-ink-2 hover:bg-ink/5">
                 <RefreshCw size={13} />
               </button>
+            </div>
+            <div className="mt-2 flex items-center justify-between gap-3 rounded-[12px] bg-paper px-3 py-2.5 text-[13px]">
+              <span className="min-w-0 truncate">
+                <span className="text-ink-3">Model </span>
+                {connected && modelName ? <span className="font-mono text-[12px]">{modelName}{modelHost ? ` · ${modelHost}` : ''}</span> : 'No model connected'}
+              </span>
+              <Link to="/app/settings" className="shrink-0 font-medium text-cobalt [@media(hover:hover)]:hover:underline">
+                Settings
+              </Link>
             </div>
             {health && !health.ok && (
               <p className="mt-2 font-mono text-[11px] leading-relaxed text-ink-3">cd backend && .venv/bin/uvicorn server:app --port 8000</p>

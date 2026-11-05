@@ -266,7 +266,7 @@ function Balance({ value, hit }: { value: number; hit: boolean }) {
 function DebitCard({ blocked }: { blocked: boolean }) {
   const reduce = useReducedMotion()
   return (
-    <div className="flex shrink-0 items-center gap-3">
+    <div className="flex shrink-0 items-center gap-3 max-md:flex-col max-md:items-start max-md:gap-1.5">
       <div className="h-[58px] w-[92px] shrink-0" style={{ perspective: 480 }}>
       <AnimatePresence initial={false} mode="wait">
       <motion.div
@@ -295,9 +295,9 @@ function DebitCard({ blocked }: { blocked: boolean }) {
       </motion.div>
       </AnimatePresence>
       </div>
-      <div className="w-[88px]">
-        <p className="text-[11.5px] leading-4 text-[#6B7785]">Debit card</p>
-        <p className="text-[13px] leading-5 font-semibold tabular">•••• 4821</p>
+      <div className="w-[88px] max-md:w-[92px]">
+        <p className="text-[11.5px] leading-4 text-[#6B7785] max-md:hidden">Debit card</p>
+        <p className="text-[13px] leading-5 font-semibold tabular max-md:hidden">•••• 4821</p>
         <div className="relative mt-0.5 h-5">
           <AnimatePresence initial={false} mode="popLayout">
             <motion.span

@@ -1,15 +1,49 @@
+# Dependencies and builds
 node_modules/
 dist/
 .venv/
-.env
-*.env.local
 __pycache__/
 *.pyc
-backend/audit.jsonl
-backend/custom_rules.json
-.DS_Store
-.claude/settings.local.json
-.agents/**/node_modules/
 app/*.tsbuildinfo
 *.log
+.DS_Store
+
+# Secrets: only .env.example is committed
+.env
+*.env.local
+
+# Runtime files written by the backend
+backend/audit.jsonl
+backend/custom_rules.json
+
+# Docs and notes: only the root README is published
+*.md
+!/README.md
+
+# HTML: only the pages the app and server need
+*.html
+!/app/index.html
+!/backend/web/index.html
+
+# Tests, QA drivers and their output
 .qa/
+scripts/qa/
+test/
+tests/
+*.test.*
+*.spec.*
+backend/test_*.py
+
+# Agent and editor tooling
+.agents/
+.claude/
+CLAUDE.md
+AGENTS.md
+skills-lock.json
+
+# Local-only extras (the keynote and its figures)
+app/src/presentation/
+app/src/stageshow-kit/
+app/public/figures/
+figures/
+docs/plans/

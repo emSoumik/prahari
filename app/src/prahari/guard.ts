@@ -4,7 +4,7 @@ import type { Domain, Evaluation, Rule } from './types'
 
 /**
  * The one door the UI uses to reach Prahari. 'local' runs the scripted engine in the
- * browser (always available, demo-safe). 'backend' calls the Ship-Of-Theseus service on
+ * browser (always available, demo-safe). 'backend' calls the Prahari backend on
  * localhost and falls back to local if it is unreachable. Wired in `backend.ts`.
  */
 export type GuardMode = 'local' | 'backend'

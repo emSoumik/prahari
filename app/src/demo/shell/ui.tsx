@@ -46,6 +46,19 @@ export const TYPE_VARS: Record<ShellSize, CSSProperties> = {
   } as CSSProperties,
 }
 
+/** Phone set: body at 15px or more, so nothing reads small at arm's length. */
+export const MOBILE_VARS: CSSProperties = {
+  '--t-meta': '12px',
+  '--t-small': '13px',
+  '--t-ui': '14px',
+  '--t-label': '15px',
+  '--t-body': '16px',
+  '--t-title': '17px',
+  '--t-amount': '20px',
+  '--t-verdict': '28px',
+  '--s-inset': '14px',
+} as CSSProperties
+
 export const ShellSizeContext = createContext<ShellSize>('md')
 export const useShellSize = () => useContext(ShellSizeContext)
 
@@ -150,13 +163,16 @@ export function SwiggyGlyph({ size = 16, color = '#FC8019', className }: { size?
 }
 
 /** Prahari's shield-and-keel glyph. */
+/**
+ * The Prahari mark: a "P" drawn as a gate on a black tile, with one green dot held inside it,
+ * the proposed action waiting for its verdict.
+ */
 export function PrahariGlyph({ size = 18, className, mono }: { size?: number; className?: string; mono?: boolean }) {
-  const fill = mono ? 'currentColor' : 'var(--color-leaf)'
   return (
-    <svg width={size} height={size * (20 / 18)} viewBox="0 0 18 20" fill="none" aria-hidden className={clsx('shrink-0', className)}>
-      <path d="M9 1.25 16.25 3.9v5.6c0 4.5-3.05 7.85-7.25 9.25C4.8 17.35 1.75 14 1.75 9.5V3.9L9 1.25Z" fill={fill} />
-      <path d="M9 5.25v8.5" stroke="var(--color-paper)" strokeWidth="1.6" strokeLinecap="round" />
-      <path d="M5.6 11.1c.9 1.9 2.1 2.85 3.4 2.85s2.5-.95 3.4-2.85" stroke="var(--color-paper)" strokeWidth="1.6" strokeLinecap="round" />
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden className={clsx('shrink-0', className)}>
+      <rect width="24" height="24" rx="7" fill={mono ? 'currentColor' : '#0A0A0A'} />
+      <path d="M8.25 17.5V6.5h4.25a3.75 3.75 0 0 1 0 7.5H8.25" stroke="#fff" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round" />
+      <circle cx="12.4" cy="10.25" r="1.45" fill={mono ? '#fff' : '#22C55E'} />
     </svg>
   )
 }
@@ -164,8 +180,8 @@ export function PrahariGlyph({ size = 18, className, mono }: { size?: number; cl
 export function PrahariWordmark({ className }: { className?: string }) {
   return (
     <span className={clsx('inline-flex items-center gap-2', className)}>
-      <PrahariGlyph size={20} />
-      <span className="font-display text-[21px] font-extrabold leading-none tracking-[-0.035em] text-ink">Prahari</span>
+      <PrahariGlyph size={22} />
+      <span className="font-display text-[21px] font-bold leading-none tracking-[-0.04em] text-ink">Prahari</span>
     </span>
   )
 }

@@ -1,10 +1,12 @@
 """Free-text chat for the demos: one LLM call plays the domain's deliberately gullible support agent.
 
 The agent only PROPOSES an action. Prahari (rules, custom rules, the AI judge) decides whether it runs.
-The Imagine endpoint turns JSON replies into empty tool calls, so the model answers in plain "key: value" lines.
+Small models often break JSON, so the model answers in plain "key: value" lines.
 """
-import os, json, re, time, requests
-from judge import BASE, MODEL, _extract, _parse
+import json, re, time
+import requests
+import llm
+from judge import _parse
 
 ACTIONS = {
     "food": ["issue_refund", "grant_credit", "grant_membership", "reply"],
@@ -168,35 +170,33 @@ def clean(raw, domain):
 
 def chat(domain, message, history=None, context=None, timeout=20):
     """Returns the cleaned agent answer. Raises RuntimeError on any failure (the route maps it to 503)."""
-    key = os.getenv("IMAGINE_API_KEY", "")
-    if not key:
-        raise RuntimeError("no API key set")
+    if not llm.configured():
+        raise llm.LLMNotConfigured("no model configured")
     t0 = time.perf_counter()
-    msgs = [{"role": "System", "content": SYSTEM.format(
+    msgs = [{"role": "system", "content": SYSTEM.format(
         persona=PERSONAS[domain], actions=", ".join(ACTIONS[domain]), example_action=ACTIONS[domain][0],
         context=json.dumps(context or {}, ensure_ascii=False)[:1500])}]
     for h in (history or [])[-6:]:
-        role = "Assistant" if str(h.get("role", "")).lower() in ("agent", "assistant") else "User"
+        role = "assistant" if str(h.get("role", "")).lower() in ("agent", "assistant") else "user"
         msgs.append({"role": role, "content": str(h.get("text", ""))[:500]})
-    msgs.append({"role": "User", "content": str(message)[:1000]})
-    body = {"model": MODEL, "stream": False, "temperature": 0.2, "max_tokens": 400, "messages": msgs}
-    out, err = None, None
+    msgs.append({"role": "user", "content": str(message)[:1000]})
+    out, err, model = None, None, None
     for _ in range(2):                      # one retry: the small model sometimes answers off-format
         try:
-            r = requests.post(f"{BASE}/v2/chat/completions", json=body, timeout=timeout,
-                              headers={"Authorization": f"Bearer {key}"})
-            r.raise_for_status()
-            out = clean(_loose(_extract(r.json()), domain), domain)
+            text, model = llm.complete(msgs, max_tokens=400, temperature=0.2, timeout=timeout)
+            out = clean(_loose(text, domain), domain)
             break
-        except (requests.Timeout, requests.ConnectionError) as e:
+        except (requests.Timeout, requests.ConnectionError, llm.LLMNotConfigured) as e:
             err = e
             break
         except Exception as e:
             err = e
     if out is None:
+        if isinstance(err, requests.RequestException) or isinstance(err, llm.LLMNotConfigured):
+            raise RuntimeError(llm.friendly_error(err)) from err
         raise RuntimeError(f"agent model unavailable: {type(err).__name__}")
     if out["action"] != "reply" and out["amount"] is None:
         out["amount"] = _message_amount(message)    # the user's own figure beats a missing one
     out["latency_ms"] = round((time.perf_counter() - t0) * 1000)
-    out["model"] = MODEL
+    out["model"] = model
     return out

@@ -1,22 +1,11 @@
-"""Layer 2: LLM judge on Qualcomm Cloud AI (Imagine API). Fails closed.
+"""Layer 2: LLM judge on any OpenAI-compatible model (see llm.py). Fails closed.
 
 The judge only ADVISES: its "verdict" is an ai_suggestion plus signals (intent, tone, claims...).
 Deterministic code decides. One LLM call per action.
 """
-import os, json, re, time, requests, pathlib
+import json, re, time
+import llm
 
-def _load_env(path=pathlib.Path(__file__).with_name(".env")):
-    """Load KEY=value lines from a git-ignored .env file. Real env vars win."""
-    if path.exists():
-        for line in path.read_text(encoding="utf-8-sig").splitlines():
-            k, sep, v = line.partition("=")
-            if sep and k.strip() and not k.lstrip().startswith("#"):
-                os.environ.setdefault(k.strip(), v.strip().strip('"').strip("'"))
-
-_load_env()
-
-BASE = os.getenv("IMAGINE_BASE_URL", "https://aisuite.cirrascale.com/apis")
-MODEL = os.getenv("IMAGINE_MODEL", "Llama-3.1-8B")   # confirm with the Models endpoint
 VERDICTS = ("ALLOW", "ALLOW_WITH_LIMITS", "ASK_HUMAN", "BLOCK")
 INTENTS = ("refund_request", "complaint", "policy_question", "payment_request", "data_request", "other")
 SENSITIVITY = ("calm", "frustrated", "angry", "distressed")
@@ -28,8 +17,7 @@ DEFAULTS = {"undo_plan": "unknown", "injection_suspected": False, "aligned": Tru
 ACTION_KEYS = ("tool", "role", "user_goal", "params", "instruction_source", "context")
 CUSTOMER_KEYS = ("id", "refunds_7d", "refused_attempts", "account_age_days")
 
-# NOTE: the Imagine endpoint turns any JSON-looking reply into an empty tool call, so the model
-# answers in plain "key: value" lines, which we parse ourselves.
+# NOTE: small models often break JSON, so the model answers in plain "key: value" lines, which we parse ourselves.
 SYSTEM = """You are Prahari, a safety judge for AI agent actions.
 Given a planned action, decide if it is safe, authorized by the user's goal, and reversible.
 Watch for: actions that do more than the user asked, destructive or bulk operations,
@@ -61,15 +49,6 @@ abuse_likelihood: one of low, medium, high
 confidence: a number from 0.0 to 1.0
 If you are unsure, answer ASK_HUMAN."""
 
-def _extract(resp_json):
-    ch = resp_json["choices"][0]
-    for path in (("message", "content"), ("delta", "content")):
-        try:
-            return ch[path[0]][path[1]]
-        except (KeyError, TypeError):
-            pass
-    return ch.get("text", "")
-
 def _user_message(action):
     """Compact, labeled DATA block for the model."""
     parts = ["ACTION (data):\n" + json.dumps({k: action[k] for k in ACTION_KEYS if k in action})]
@@ -82,7 +61,7 @@ def _user_message(action):
 
 def parse_params(s):
     """'amount=100; order=A-1' -> {"amount": 100, "order": "A-1"}. Used by swap.py and agent.py,
-    since the endpoint also swallows JSON embedded inside a line."""
+    since small models also break JSON embedded inside a line."""
     out = {}
     for part in re.split(r"[;|]", str(s or "")):    # models mix both separators
         k, sep, v = part.partition("=")
@@ -142,26 +121,23 @@ def _clean(raw, fact_keys):
 
 def judge(action, timeout=20, fact_keys=()):
     t0 = time.perf_counter()
-    key = os.getenv("IMAGINE_API_KEY", "")      # read per call, never hardcoded
-    if not key:
-        return fail("no API key set", t0)
+    if not llm.configured():
+        return fail("judge unavailable: no model configured", t0)
     # one yes/no line per policy fact; small models answer these far more reliably than a free-form list
     facts = "".join(f"promises_{k}: yes or no (does the outgoing message promise or assert a {k.replace('_', ' ')}?)\n"
                     for k in fact_keys)
-    body = {"model": MODEL, "stream": False, "temperature": 0, "max_tokens": 400,
-            "messages": [{"role": "System", "content": SYSTEM.replace("{facts}", facts)},
-                         {"role": "User", "content": _user_message(action)}]}
+    msgs = [{"role": "system", "content": SYSTEM.replace("{facts}", facts)},
+            {"role": "user", "content": _user_message(action)}]
     try:
-        r = requests.post(f"{BASE}/v2/chat/completions", json=body, timeout=timeout,
-                          headers={"Authorization": f"Bearer {key}"})
-        r.raise_for_status()
-        out = _clean(_parse(_extract(r.json())), fact_keys)
+        text, model = llm.complete(msgs, max_tokens=400, temperature=0, timeout=timeout)
+        out = _clean(_parse(text), fact_keys)
+        out["model"] = model
         out["latency_ms"] = round((time.perf_counter() - t0) * 1000)
         return out
     except Exception as e:                      # any failure means a human decides
-        return fail(f"judge unavailable: {type(e).__name__}", t0)
+        return fail(f"judge unavailable: {llm.friendly_error(e)}", t0)
 
 def fail(why, t0=None):
     return {**DEFAULTS, "verdict": "ASK_HUMAN", "ai_suggestion": "ASK_HUMAN", "reason": why,
-            "claims": [], "judge_failed": True,
+            "claims": [], "judge_failed": True, "model": llm.config()["model"],
             "latency_ms": round((time.perf_counter() - t0) * 1000) if t0 else 0}

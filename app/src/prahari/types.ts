@@ -80,7 +80,7 @@ export interface SanitizerHit {
   match: string
 }
 
-/** What the Ship-Of-Theseus backend added (rules on policy.yaml + an advisory LLM judge). */
+/** What the Prahari backend added (rules on policy.yaml + an advisory LLM judge). */
 export interface BackendLayer {
   verdict: 'ALLOW' | 'ALLOW_WITH_LIMITS' | 'ASK_HUMAN' | 'BLOCK'
   reasons: string[]

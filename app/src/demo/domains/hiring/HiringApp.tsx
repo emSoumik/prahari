@@ -223,7 +223,7 @@ function statusMap(board: Board, approved: Record<string, CandidateId[]>): Recor
   return out
 }
 
-const COLS = 'grid grid-cols-[16px_minmax(0,1fr)_72px_136px] items-center gap-3'
+const COLS = 'grid grid-cols-[16px_minmax(0,1fr)_72px_136px] items-center gap-3 max-md:grid-cols-[12px_minmax(0,1fr)_64px_84px] max-md:gap-2'
 
 function ApplicantTable({
   rows,
@@ -253,13 +253,14 @@ function ApplicantTable({
           <p className="text-(length:--t-meta) font-medium text-ink-3">{board.screened ? 'Scored by AI' : 'Not screened yet'}</p>
         )}
       </div>
-      <div className={clsx(COLS, 'h-6 border-y border-rule bg-paper-2/50 px-4 text-[11px] font-medium text-ink-3')}>
+      <div className={clsx(COLS, 'h-6 border-y border-rule bg-paper-2/50 px-4 max-md:px-3 text-[11px] font-medium text-ink-3')}>
         <span>#</span>
         <span>Candidate</span>
         <span>Score</span>
         <span>Status</span>
       </div>
-      <div>
+      {/* On a phone the table shows four rows and scrolls, so the copilot underneath keeps room. */}
+      <div className="max-md:max-h-[172px] max-md:overflow-y-auto max-md:overscroll-contain">
         {rows.map((r, i) => (
           <motion.button
             key={r.c.id}
@@ -270,7 +271,7 @@ function ApplicantTable({
             aria-pressed={selected === r.c.id}
             className={clsx(
               COLS,
-              'relative h-[42px] w-full border-b border-rule/60 px-4 text-left',
+              'relative h-[42px] w-full border-b border-rule/60 px-4 text-left max-md:px-3',
               selected === r.c.id ? 'bg-paper-2/60' : 'bg-card [@media(hover:hover)]:hover:bg-paper-2/30',
             )}
           >

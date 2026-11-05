@@ -23,7 +23,7 @@ export function buildTrace(scenario: Scenario, ev: Evaluation): TraceStep[] {
     title: !free
       ? 'Intent · quarantined reader'
       : free.source === 'llm'
-        ? `Agent model · ${free.model ?? 'Llama-3.1-8B'}`
+        ? `Agent model · ${free.model ?? 'agent model'}`
         : free.unavailable
           ? 'Agent model unavailable · local parser'
           : 'Intent · local parser',
@@ -62,6 +62,7 @@ export function buildTrace(scenario: Scenario, ev: Evaluation): TraceStep[] {
       })
     }
     const s = be.signals
+    const judgeWhy = be.reasons.find((r) => r.startsWith('judge unavailable'))?.replace(/^judge unavailable:?\s*/, '')
     const failed = be.judgeFailed || s?.judge_failed
     const rulesOnly = be.mode === 'rules'
     const flags = s
@@ -80,7 +81,7 @@ export function buildTrace(scenario: Scenario, ev: Evaluation): TraceStep[] {
         : failed
           ? be.timedOut
             ? 'AI judge unavailable · timed out · local rules decided'
-            : 'AI judge unavailable · local rules decided'
+            : `AI judge unavailable · ${judgeWhy ? `${judgeWhy} · ` : ''}local rules decided`
           : !s
             ? 'No AI signals returned'
             : [

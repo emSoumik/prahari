@@ -1,12 +1,13 @@
 """Plank Swap: when an action is blocked or escalated, propose a safer equivalent
 that still serves the user's goal, then re-check it with Prahari itself.
 The ship keeps sailing; only the risky plank is replaced."""
-import os, re, json, requests
+import re, json
+import llm
 from rules import ORDER
-from judge import BASE, MODEL, _extract, _parse, parse_params
+from judge import _parse, parse_params
 import prahari
 
-# Plain "key: value" lines: the Imagine endpoint turns JSON replies into empty tool calls.
+# Plain "key: value" lines: small models often break JSON.
 SYSTEM = """An AI agent's planned action was flagged by a safety guard.
 Propose ONE safer action that still serves the user's goal.
 Prefer narrower, reversible, or human-reviewed versions: add a WHERE clause, lower the amount,
@@ -18,19 +19,15 @@ params: parameters as key=value pairs separated by semicolons, for example amoun
 why: one plain sentence"""
 
 def _llm_candidate(action, result, timeout=15):
-    key = os.getenv("IMAGINE_API_KEY", "")
-    if not key:
+    if not llm.configured():
         return None
-    body = {"model": MODEL, "stream": False, "temperature": 0, "max_tokens": 250,
-            "messages": [{"role": "System", "content": SYSTEM},
-                         {"role": "User", "content": "FLAGGED ACTION (data):\n" + json.dumps(
-                             {"tool": action.get("tool"), "params": action.get("params"), "user_goal": action.get("user_goal"),
-                              "flagged_because": result["reasons"]})}]}
+    msgs = [{"role": "system", "content": SYSTEM},
+            {"role": "user", "content": "FLAGGED ACTION (data):\n" + json.dumps(
+                {"tool": action.get("tool"), "params": action.get("params"), "user_goal": action.get("user_goal"),
+                 "flagged_because": result["reasons"]})}]
     try:
-        r = requests.post(f"{BASE}/v2/chat/completions", json=body, timeout=timeout,
-                          headers={"Authorization": f"Bearer {key}"})
-        r.raise_for_status()
-        out = _parse(_extract(r.json()), required="tool")
+        text, _ = llm.complete(msgs, max_tokens=250, temperature=0, timeout=timeout)
+        out = _parse(text, required="tool")
         tool = str(out.get("tool", "")).strip()
         params = out["params"] if isinstance(out.get("params"), dict) else parse_params(out.get("params"))
         if not re.fullmatch(r"[a-z_]+\.[a-z_]+", tool):

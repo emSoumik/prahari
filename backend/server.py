@@ -2,18 +2,18 @@
 import json, time, uuid, shutil, pathlib, tempfile
 from typing import Optional
 import yaml
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Depends
 from fastapi.responses import StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
-import prahari, audit, rules, custom_rules, chat_agent
+import prahari, audit, rules, custom_rules, chat_agent, llm
 from scenarios import SCENARIOS
 from agent import live_plan
 from swap import propose_swap
 from ingest import ingest
 
 ROOT = pathlib.Path(__file__).parent
-app = FastAPI(title="Prahari")
+app = FastAPI(title="Prahari", dependencies=[Depends(llm.from_headers)])
 CASES = json.loads((ROOT / "cases.json").read_text(encoding="utf-8"))
 PENDING = {}
 APPROVED = ("ALLOW", "ALLOW_WITH_LIMITS")
@@ -80,8 +80,22 @@ class CustomRule(BaseModel):
 
 @app.get("/api/health")
 def health():
-    import os
-    return {"ok": True, "llm_key_set": bool(os.getenv("IMAGINE_API_KEY"))}
+    return {"ok": True, "llm_key_set": llm.configured(), "llm": llm.public_info()}
+
+@app.post("/api/llm/test")
+def llm_test():
+    """One tiny call to check the configured model. Always HTTP 200; failures come back as ok: false."""
+    try:
+        return llm.test()
+    except Exception as e:
+        return {"ok": False, "error": llm.friendly_error(e)}
+
+@app.get("/api/llm/models")
+def llm_models():
+    try:
+        return {"models": llm.list_models()}
+    except Exception as e:
+        raise HTTPException(502, llm.friendly_error(e))
 
 @app.get("/api/cases")
 def cases():
@@ -104,6 +118,8 @@ def chat(req: ChatReq):
         raise HTTPException(400, "domain must be food, bank or hiring")
     try:
         return chat_agent.chat(req.domain, req.message, req.history, req.context)
+    except llm.LLMNotConfigured as e:
+        raise HTTPException(503, llm.friendly_error(e))
     except RuntimeError as e:
         raise HTTPException(503, str(e))
 
@@ -125,14 +141,16 @@ def run(req: RunReq):
     role = (sc or {}).get("role") or req.role
     untrusted = (sc or {}).get("untrusted", req.untrusted)
     cid = ((sc or {}).get("customer") or {}).get("id")
+    cfg_overrides = llm._overrides.get()
     def gen():
+        llm._overrides.set(cfg_overrides)   # make sure the generator sees this request's model settings
         planner, steps = "scripted", (sc or {}).get("steps")
         if req.planner == "live" or not steps:
             live = live_plan(goal, untrusted)
             if live:
                 planner, steps = "live", live
         if not steps:
-            yield sse({"type": "error", "message": "no plan available (set IMAGINE_API_KEY or pick a scenario)"}); return
+            yield sse({"type": "error", "message": "no plan available (add an API key in Settings or OPENAI_API_KEY in backend/.env, or pick a scenario)"}); return
         run_id = uuid.uuid4().hex[:6]
         if cid:
             CUSTOMERS[cid] = dict(SEED_CUSTOMERS[cid])
@@ -258,10 +276,12 @@ def compile_rule(req: CompileReq):
     if req.domain not in custom_rules.ACTIONS:
         raise HTTPException(400, "domain must be food, bank or hiring")
     try:
-        rule, ms, notes = custom_rules.compile_rule(req.text, req.domain)
+        rule, ms, notes, model = custom_rules.compile_rule(req.text, req.domain)
+    except llm.LLMNotConfigured as e:
+        raise HTTPException(503, llm.friendly_error(e))
     except Exception as e:
         raise HTTPException(422, f"could not compile: {e}")
-    return {"rule": rule, "latency_ms": ms, "model": custom_rules.MODEL, "corrections": notes}
+    return {"rule": rule, "latency_ms": ms, "model": model, "corrections": notes}
 
 @app.get("/api/rules")
 def list_rules():

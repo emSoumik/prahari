@@ -8,10 +8,13 @@ import type { Domain } from '../../prahari/types'
 import { DOMAINS, DOMAIN_ORDER } from '../registry'
 import { PolicySheet } from './PolicySheet'
 import { Composer } from './Composer'
+import { HeaderVerdict } from './HeaderVerdict'
+import { MobileShell } from './MobileShell'
+import { PHONE_QUERY, useMediaQuery } from './useMedia'
 import { PrahariPanel } from './PrahariPanel'
 import { isBusy, resetRuns, sendMessage, useRuns, verifyRun } from './runs'
 import type { Run } from './types'
-import { PrahariWordmark, SPRING, ShellSizeContext, TYPE_VARS, TypingDots, VerdictPill, type ShellSize } from './ui'
+import { PrahariWordmark, SPRING, ShellSizeContext, TYPE_VARS, type ShellSize } from './ui'
 
 export interface DemoShellProps {
   domain: Domain
@@ -29,7 +32,20 @@ const APP_ZOOM: Record<ShellSize, number> = { lg: 1.15, md: 1 }
 /** Shell width from which the projector scale applies (the deck stage is 1920 wide). */
 const LG_FROM = 1700
 
-export function DemoShell({ domain: domainProp, variant = 'page', onDomainChange }: DemoShellProps) {
+export function DemoShell(props: DemoShellProps) {
+  const phone = useMediaQuery(PHONE_QUERY)
+  if (phone && (props.variant ?? 'page') === 'page') return <PhoneShell {...props} />
+  return <DesktopShell {...props} />
+}
+
+/** Owns the domain (controlled or local) for the phone layout. */
+function PhoneShell({ domain: domainProp, onDomainChange }: DemoShellProps) {
+  const [local, setLocal] = useState(domainProp)
+  const domain = onDomainChange ? domainProp : local
+  return <MobileShell domain={domain} onDomain={onDomainChange ?? setLocal} />
+}
+
+function DesktopShell({ domain: domainProp, variant = 'page', onDomainChange }: DemoShellProps) {
   const [localDomain, setLocalDomain] = useState(domainProp)
   const [prevProp, setPrevProp] = useState(domainProp)
   if (prevProp !== domainProp) {
@@ -186,9 +202,9 @@ function TopBar({
     <header className="flex h-(--pane-head) shrink-0 items-center gap-5 border-b border-rule px-5 pt-0 text-(length:--t-ui)">
       <PrahariWordmark />
       {variant === 'page' && (
-        <Link to="/" className="inline-flex items-center gap-1 text-(length:--t-small) text-ink-3 transition-colors [@media(hover:hover)]:hover:text-ink">
+        <Link to="/app" className="inline-flex items-center gap-1 text-(length:--t-small) text-ink-3 transition-colors [@media(hover:hover)]:hover:text-ink">
           <ArrowLeft size={13} />
-          Presentation
+          App
         </Link>
       )}
       <span className="h-5 w-px bg-rule" />
@@ -232,7 +248,7 @@ function TopBar({
         </BarButton>
         <DevButton />
         {variant === 'slide' && (
-          <Link to={`/demo/${domain}`} className="ml-1 inline-flex items-center gap-1 text-(length:--t-ui) text-ink-3 transition-colors [@media(hover:hover)]:hover:text-ink">
+          <Link to={`/app/demo/${domain}`} className="ml-1 inline-flex items-center gap-1 text-(length:--t-ui) text-ink-3 transition-colors [@media(hover:hover)]:hover:text-ink">
             Open full demo
             <ArrowRight size={13} />
           </Link>
@@ -288,20 +304,6 @@ function Pane({
       <div className="min-h-0 flex-1">{children}</div>
     </section>
   )
-}
-
-function HeaderVerdict({ run }: { run: Run | undefined }) {
-  if (!run) return null
-  const fu = run.on.followUps.at(-1)
-  const phase = fu ? fu.phase : run.on.phase
-  if (phase !== 'done') {
-    return (
-      <span className="inline-flex h-[2.1em] items-center gap-2 rounded-full bg-paper-2 px-[0.9em] text-(length:--t-ui) font-medium text-ink-2">
-        <TypingDots /> Checking
-      </span>
-    )
-  }
-  return <VerdictPill verdict={fu ? fu.verdict : run.on.verdict} />
 }
 
 function ReasoningColumn({ open, overlay, run, width }: { open: boolean; overlay: boolean; run: Run | undefined; width: number }) {

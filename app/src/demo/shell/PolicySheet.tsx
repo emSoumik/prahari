@@ -2,7 +2,9 @@ import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
 import { useEffect, useRef } from 'react'
 import PolicyConsole from '../policies/PolicyConsole'
 import type { Domain } from '../../prahari/types'
+import { BottomSheet } from './BottomSheet'
 import { SPRING } from './ui'
+import { PHONE_QUERY, useMediaQuery } from './useMedia'
 
 /** Right-side sheet over the demo that hosts the policy console. */
 export function PolicySheet({
@@ -16,21 +18,22 @@ export function PolicySheet({
   onClose: () => void
   onOpenDemo: (d: Domain) => void
 }) {
+  const phone = useMediaQuery(PHONE_QUERY)
   const reduce = useReducedMotion()
   const sheet = useRef<HTMLElement>(null)
 
   // Move focus into the dialog on open and hand it back to the opener on close.
   useEffect(() => {
-    if (!open) return
+    if (!open || phone) return
     const opener = document.activeElement
     sheet.current?.focus({ preventScroll: true })
     return () => {
       if (opener instanceof HTMLElement && opener.isConnected) opener.focus({ preventScroll: true })
     }
-  }, [open])
+  }, [open, phone])
 
   useEffect(() => {
-    if (!open) return
+    if (!open || phone) return
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         e.stopPropagation()
@@ -39,7 +42,17 @@ export function PolicySheet({
     }
     window.addEventListener('keydown', onKey, true)
     return () => window.removeEventListener('keydown', onKey, true)
-  }, [open, onClose])
+  }, [open, phone, onClose])
+
+  if (phone) {
+    return (
+      <BottomSheet open={open} onClose={onClose} label="Policies" height="92dvh">
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
+          <PolicyConsole variant="sheet" initialDomain={domain} onOpenDemo={onOpenDemo} onClose={onClose} />
+        </div>
+      </BottomSheet>
+    )
+  }
 
   return (
     <AnimatePresence>

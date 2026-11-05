@@ -6,7 +6,7 @@ of a customer's own request on a soft_refusal_tools tool goes to a human instead
 ASK_HUMAN never executes, so that exception routes the action to a person; it never approves it.
 """
 from rules import ORDER
-from judge import MODEL
+import llm
 
 ASK = "ASK_HUMAN"
 SIGNAL_KEYS = ("intent", "sensitivity", "pressure_tactics", "abuse_likelihood", "claims", "summary",
@@ -119,5 +119,5 @@ def decide(action, rule_result, signals, policy):
                                "injection_suspected": j.get("injection_suspected")} if j else None},
             "decided_by": decided, "deterministic": decided == "rules",
             "ai_suggestion": j.get("ai_suggestion", j["verdict"]) if j and not failed else None,
-            "signals": ({k: j.get(k) for k in SIGNAL_KEYS} | {"judge_failed": failed, "reason": j["reason"], "model": MODEL}) if j else None,
+            "signals": ({k: j.get(k) for k in SIGNAL_KEYS} | {"judge_failed": failed, "reason": j["reason"], "model": j.get("model") or llm.config()["model"]}) if j else None,
             "handoff": handoff}

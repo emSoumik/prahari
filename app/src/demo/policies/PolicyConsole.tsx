@@ -107,7 +107,7 @@ export default function PolicyConsole({ variant = 'page', initialDomain = 'food'
   const compact = variant === 'sheet'
   const root = clsx(
     'relative font-sans text-ink',
-    variant === 'page' && 'mx-auto w-full max-w-[1120px] px-6 py-10',
+    variant === 'page' && 'mx-auto w-full max-w-[1120px] px-6 py-10 max-md:px-4 max-md:py-6',
     variant === 'sheet' && 'w-full px-5 py-5',
     variant === 'slide' && 'w-full px-16 pt-9 pb-20',
   )
@@ -126,7 +126,7 @@ export default function PolicyConsole({ variant = 'page', initialDomain = 'food'
           <button
             onClick={onClose}
             aria-label="Close policies"
-            className="order-last -mr-2 flex size-11 items-center justify-center rounded-full text-ink-2 transition-transform hover:bg-paper-2 active:scale-95"
+            className="order-last -mr-2 flex size-11 max-md:absolute max-md:top-2 max-md:right-2 max-md:mr-0 items-center justify-center rounded-full text-ink-2 transition-transform hover:bg-paper-2 active:scale-95"
           >
             <X size={20} />
           </button>
@@ -134,7 +134,7 @@ export default function PolicyConsole({ variant = 'page', initialDomain = 'food'
         <div
           role="radiogroup"
           aria-label="Domain"
-          className="flex rounded-xl border border-rule bg-paper-2/70 p-1"
+          className="flex rounded-xl border border-rule bg-paper-2/70 p-1 max-md:w-full max-md:[&>button]:flex-auto max-md:[&>button]:justify-center max-md:[&>button]:whitespace-nowrap max-md:[&>button]:px-2.5"
           onKeyDown={(e) => {
             const step = e.key === 'ArrowRight' || e.key === 'ArrowDown' ? 1 : e.key === 'ArrowLeft' || e.key === 'ArrowUp' ? -1 : 0
             if (!step) return
@@ -167,7 +167,7 @@ export default function PolicyConsole({ variant = 'page', initialDomain = 'food'
                 )}
                 <span className="relative flex items-center gap-2">
                   <DomainLogo domain={d.id} size={18} />
-                  {(!compact || on) && d.name}
+                  {compact && !on ? <span className="hidden max-md:inline">{d.name}</span> : d.name}
                 </span>
               </button>
             )

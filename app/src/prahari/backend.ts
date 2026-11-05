@@ -2,18 +2,27 @@ import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import type { CompileStage } from './compiler'
 import { evaluate, type EvaluateInput } from './engine'
+import { llmHeaders, modelLabel, useLlm } from './llm'
 import { registerBackend, setGuardMode, type GuardMode } from './guard'
 import type { AgentAnswer, ChatContext } from './intent'
 import { usePrahari } from './store'
 import type { ActionType, BackendLayer, Domain, Evaluation, GateResult, Rule, Verdict } from './types'
 
 /**
- * Adapter for the Ship-Of-Theseus FastAPI backend (proxied at /api by Vite).
+ * Adapter for the Prahari FastAPI backend (proxied at /api by Vite).
  * The browser's deterministic engine always runs too; the final verdict is the stricter of
  * the two, so turning the backend on can only add protection, never remove it.
  */
 
 type JudgeMode = 'rules' | 'hybrid'
+
+/** What the server reports about its model (never the key). */
+export interface LlmInfo {
+  configured: boolean
+  source: 'header' | 'env' | 'none'
+  model: string
+  baseHost: string
+}
 
 interface Exchange {
   at: number
@@ -27,7 +36,7 @@ interface Exchange {
 interface DevState {
   mode: GuardMode
   judge: JudgeMode
-  health: { ok: boolean; llmKey: boolean; checkedAt: number } | null
+  health: { ok: boolean; llmKey: boolean; llm: LlmInfo | null; checkedAt: number } | null
   log: Exchange[]
   setMode: (m: GuardMode) => void
   setJudge: (j: JudgeMode) => void
@@ -53,12 +62,14 @@ export const useDev = create<DevState>()(
         const wasOk = get().health?.ok === true
         let ok = false
         try {
-          const r = await fetch('/api/health', { signal: AbortSignal.timeout(2500) })
+          const r = await fetch('/api/health', { headers: llmHeaders(), signal: AbortSignal.timeout(2500) })
           const j = await r.json()
           ok = r.ok && !!j.ok
-          set({ health: { ok, llmKey: !!j.llm_key_set, checkedAt: Date.now() } })
+          const l = j.llm
+          const llm: LlmInfo | null = l && typeof l === 'object' ? { configured: !!l.configured, source: l.source ?? 'none', model: String(l.model ?? ''), baseHost: String(l.base_host ?? '') } : null
+          set({ health: { ok, llmKey: llm ? llm.configured : !!j.llm_key_set, llm, checkedAt: Date.now() } })
         } catch {
-          set({ health: { ok: false, llmKey: false, checkedAt: Date.now() } })
+          set({ health: { ok: false, llmKey: false, llm: null, checkedAt: Date.now() } })
         }
         // the server came (back) up: it may have restarted and lost the published rules
         if (ok && !wasOk && get().mode === 'backend') void syncRules(usePrahari.getState().rules)
@@ -76,7 +87,7 @@ async function call<T>(path: string, init: RequestInit & { body?: string }, time
   try {
     const r = await fetch(path, {
       ...init,
-      headers: { 'content-type': 'application/json' },
+      headers: { 'content-type': 'application/json', ...llmHeaders() },
       signal: AbortSignal.timeout(timeoutMs),
     })
     const response = await r.json().catch(() => null)
@@ -167,7 +178,7 @@ async function backendEvaluate(input: EvaluateInput, rules: Rule[]): Promise<Eva
         verdict: 'ALLOW',
         reasons: [],
         decidedBy: 'timeout',
-        model: 'Llama-3.1-8B',
+        model: modelLabel(),
         mode: judge,
         signals: null,
         handoff: null,
@@ -199,7 +210,7 @@ async function backendEvaluate(input: EvaluateInput, rules: Rule[]): Promise<Eva
     verdict: res.verdict,
     reasons: res.reasons,
     decidedBy: res.decided_by,
-    model: res.model ?? res.signals?.model ?? 'Llama-3.1-8B',
+    model: res.model ?? res.signals?.model ?? modelLabel(),
     mode: judge,
     signals: res.signals,
     handoff: res.handoff,
@@ -235,7 +246,7 @@ interface ChatRes {
 }
 
 /**
- * The domain's agent model (Llama-3.1-8B, deliberately gullible) reads free text and proposes one action.
+ * The domain's agent model (whichever model is configured, deliberately gullible) reads free text and proposes one action.
  * Throws on any failure; the caller falls back to the local parser.
  */
 export async function backendChat(domain: Domain, message: string, history: { role: 'user' | 'agent'; text: string }[], context: ChatContext): Promise<AgentAnswer> {
@@ -322,4 +333,13 @@ if (useDev.getState().mode === 'backend') void syncRules(usePrahari.getState().r
 // Keep the server's rule set in step with the console whenever backend mode is on.
 usePrahari.subscribe((s, prev) => {
   if (s.rules !== prev.rules && useDev.getState().mode === 'backend') void syncRules(s.rules)
+})
+
+// New model settings while on the backend: ask the server again what it can use.
+let llmTimer: ReturnType<typeof setTimeout> | undefined
+useLlm.subscribe((s, prev) => {
+  if (s.baseUrl === prev.baseUrl && s.model === prev.model && s.apiKey === prev.apiKey) return
+  if (useDev.getState().mode !== 'backend') return
+  clearTimeout(llmTimer)
+  llmTimer = setTimeout(() => void useDev.getState().checkHealth(), 400)
 })
