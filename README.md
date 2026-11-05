@@ -10,6 +10,10 @@
 </p>
 
 <p align="center">
+  <a href="https://prahari-ytc.pages.dev"><b>Live site: prahari-ytc.pages.dev</b></a>
+</p>
+
+<p align="center">
   <a href="#try-it">Try it</a> ·
   <a href="#how-it-works">How it works</a> ·
   <a href="#use-your-own-model">Use your own model</a> ·
@@ -49,7 +53,7 @@ The decision is made by plain code, not by an AI model. The same action always g
 
 ## Try it
 
-The web app has three live demos. Each shows the same agent twice: on the left with no checks, on the right behind Prahari. Pick a message or write your own, and try to trick the agent.
+The web app has three live demos. Open them at **[prahari-ytc.pages.dev/app](https://prahari-ytc.pages.dev/app)**, no sign-up or key needed. Each shows the same agent twice: on the left with no checks, on the right behind Prahari. Pick a message or write your own, and try to trick the agent.
 
 | Demo | What it shows |
 |---|---|
